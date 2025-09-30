@@ -4,6 +4,7 @@ import ChartComponent from "./chart";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
+//TODO: adjust interval according to range
 export default function Dashboard() {
   const [symbol, setSymbol] = useState("BTC");
   const [interval, setInterval] = useState("1h");
@@ -121,8 +122,8 @@ export default function Dashboard() {
       </div>
 
       <div style={{ marginTop: "1.5rem" }}>
-        <h3>Chart (placeholder)</h3>
-        <ChartComponent />
+        <h3>Chart </h3>
+      {resp && <ChartComponent points={resp.points} />}
       </div>
 
       <p style={{ opacity: .7, marginTop: "1rem" }}>

@@ -3,9 +3,10 @@
 from datetime import datetime, timezone
 from typing import Literal, List, Any, Dict
 import httpx
-from fastapi import FastAPI, HTTPException, Path, Query
+from fastapi import FastAPI, HTTPException, Path, Query, WebSocket, WebSocketDisconnect
+import asyncio
 
-# ⬇️ ADD THESE 2 LINES
+
 from fastapi.middleware.cors import CORSMiddleware
 
 from binance_api_wrapper import (
@@ -15,7 +16,6 @@ from binance_api_wrapper import (
 
 app = FastAPI(title="Binance Price API", version="1.0")
 
-# ⬇️ ADD THIS BLOCK: allow your Vite dev origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -78,21 +78,39 @@ async def get_prices(
         "points": points,  # OHLCV per candle with timestamps
     }
 
-@app.get("/prices/{symbol}/latest", summary="Latest price (spot ticker)")
-async def latest_price(symbol: Literal["BTC", "ETH"]):
-    print(f"Endpoint: /prices/{symbol}/latest")
+@app.websocket("/ws/prices/{symbol}/latest")
+async def latest_price_ws(websocket: WebSocket, symbol: Literal["BTC", "ETH"]):
+    await websocket.accept()
     pair = PAIRS.get(symbol)
     if pair is None:
-        raise HTTPException(status_code=404, detail="Unsupported symbol (use BTC or ETH).")
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        r = await client.get(f"{BINANCE}/api/v3/ticker/price", params={"symbol": pair})
-        if r.status_code == 429:
-            raise HTTPException(429, "Upstream rate limited; try again shortly.")
-        r.raise_for_status()
-        data = r.json()
-    return {
-        "symbol": symbol,
-        "pair": data["symbol"],
-        "price": float(data["price"]),
-        "timestamp": int(datetime.now(tz=timezone.utc).timestamp() * 1000),
-    }
+        await websocket.close(code=1003, reason="Unsupported symbol (use BTC or ETH).")
+        return
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            while True:
+                try:
+                    r = await client.get(f"{BINANCE}/api/v3/ticker/price", params={"symbol": pair})
+                    if r.status_code == 429:
+                        await websocket.send_json({"error": "Rate limited, try again shortly."})
+                        await asyncio.sleep(5)
+                        continue
+                    r.raise_for_status()
+                    data = r.json()
+
+                    await websocket.send_json({
+                        "symbol": symbol,
+                        "pair": data["symbol"],
+                        "price": float(data["price"]),
+                        "timestamp": int(datetime.now(tz=timezone.utc).timestamp() * 1000),
+                    })
+
+                except httpx.RequestError as e:
+                    await websocket.send_json({"error": f"Network error: {str(e)}"})
+
+                # wait a few seconds before fetching again
+                await asyncio.sleep(3)
+
+    except WebSocketDisconnect:
+        print(f"Client disconnected from {symbol} price feed")
+

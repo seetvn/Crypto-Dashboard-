@@ -1,5 +1,5 @@
+import React from "react";
 import { useState } from "react";
-import { Chart } from "chart.js/auto";
 import ChartComponent from "./chart";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
@@ -13,10 +13,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [resp, setResp] = useState(null);
   const [error, setError] = useState(null);
-
-
-  const [chartRef, setChartRef] = useState(null);
-  const [chartInstance, setChartInstance] = useState(null);
 
   // Convert datetime-local string to UNIX ms
   const toMs = (v) => (v ? new Date(v).getTime() : null);

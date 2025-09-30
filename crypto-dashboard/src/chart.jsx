@@ -1,32 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import React from "react";
+import { useEffect, useRef} from "react";
 import { Chart } from "chart.js/auto";
+import PropTypes from "prop-types";  // 👈 import this
 
 export default function ChartComponent({ points }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
-  const [selected, setSelected] = useState(null); // { ts, price }
-  console.log("There are", points.length," points");
+  const selected = null;
+
+  console.log("There are", points.length, "points");
+
   const timestamps = points.map((p) => p.close_time ?? p.open_time);
   const prices = points.map((p) => p.close);
-
-  // Date only for axis
-  const fmtDate = (ts) =>
-    new Date(ts).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-
-  // Full datetime for tooltip / click
-  const fmtFull = (ts) =>
-    new Date(ts).toLocaleString(undefined, {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -36,7 +21,13 @@ export default function ChartComponent({ points }) {
       chartRef.current = null;
     }
 
-    const labels = timestamps.map((ts) => fmtDate(ts));
+    const labels = timestamps.map((ts) =>
+      new Date(ts).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+    );
 
     chartRef.current = new Chart(canvasRef.current, {
       type: "line",
@@ -47,46 +38,14 @@ export default function ChartComponent({ points }) {
             label: "Close Price (USDT)",
             data: prices,
             borderColor: "green",
-            backgroundColor: "rgba(0, 128, 0, 0.2)", // semi-transparent green
+            backgroundColor: "rgba(0,128,0,0.2)",
             pointRadius: 2,
             pointHoverRadius: 4,
             fill: true,
           },
         ],
       },
-      options: {
-        responsive: true,
-        interaction: { mode: "nearest", intersect: true },
-        plugins: {
-          legend: { position: "top" },
-          tooltip: {
-            callbacks: {
-              title: (items) => {
-                const idx = items[0].dataIndex;
-                return fmtFull(timestamps[idx]);
-              },
-              label: (item) => `Close: ${item.formattedValue}`,
-            },
-          },
-        },
-        scales: {
-          x: { display: true, title: { display: true, text: "Date" } },
-          y: { display: true, title: { display: true, text: "Price (USDT)" } },
-        },
-        onClick: (evt, elements) => {
-          if (!elements?.length) return;
-          const idx = elements[0].index;
-          setSelected({ ts: timestamps[idx], price: prices[idx] });
-        },
-      },
     });
-
-    return () => {
-      if (chartRef.current) {
-        chartRef.current.destroy();
-        chartRef.current = null;
-      }
-    };
   }, [points]);
 
   return (
@@ -97,17 +56,29 @@ export default function ChartComponent({ points }) {
         height="360"
         style={{ border: "1px solid #ccc", borderRadius: 8 }}
       />
-      <div style={{ marginTop: 8, fontFamily: "system-ui, sans-serif" }}>
+      <div>
         {selected ? (
           <strong>
-            {fmtFull(selected.ts)} — Close: {selected.price}
+            {new Date(selected.ts).toLocaleString()} — Close: {selected.price}
           </strong>
         ) : (
           <span style={{ opacity: 0.7 }}>
-            Click a point to see exact time (HH:mm) and price
+            Click a point to see exact time and price
           </span>
         )}
       </div>
     </div>
   );
 }
+
+// ✅ declare prop types so ESLint shuts up
+ChartComponent.propTypes = {
+  points: PropTypes.arrayOf(
+    PropTypes.shape({
+      open_time: PropTypes.number,
+      close_time: PropTypes.number,
+      open: PropTypes.number,
+      close: PropTypes.number,
+    })
+  ).isRequired,
+};

@@ -5,6 +5,8 @@ import ChartComponent from "./chart";
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
 //TODO: adjust interval according to range
+//TODO: add more data to chart (e.g., close, indicators, etc)
+//TODO: better error handling (e.g., network errors)
 export default function Dashboard() {
   const [symbol, setSymbol] = useState("BTC");
   const [interval, setInterval] = useState("1h");

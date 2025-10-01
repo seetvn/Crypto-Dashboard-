@@ -1,5 +1,6 @@
 # main.py
-# main.py
+#TODO: generate api specs
+#TODO: better error handling (e.g., network errors)
 from datetime import datetime, timezone
 from typing import Literal, List, Any, Dict
 import httpx

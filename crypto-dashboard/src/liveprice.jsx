@@ -77,7 +77,7 @@ export default function LivePriceTrend({ symbol = "BTC" }) {
         plugins: { legend: { display: false } },
         scales: {
           x: { display: true, title: { display: true, text: "Time" } },
-          y: { display: true, title: { display: true, text: "Price (USDT)" } },
+          y: { display: true, title: { display: true, text: "Price (USD)" } },
         },
       },
     });
@@ -102,7 +102,7 @@ export default function LivePriceTrend({ symbol = "BTC" }) {
       {latestPrice !== null ? (
         <div style={{ marginBottom: "0.5rem" }}>
           <p>
-            <strong>Price:</strong> {latestPrice.toFixed(2)} USDT
+            <strong>Price:</strong> {latestPrice.toFixed(2)} USD(T)
           </p>
           <p>
             <strong>Time:</strong> {latestTime}

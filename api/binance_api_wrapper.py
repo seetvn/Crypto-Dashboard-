@@ -2,7 +2,7 @@
 # main.py
 from datetime import datetime, timezone
 from typing import Literal, List, Any, Dict, Optional
-
+from shared_utils import PAIRS
 import asyncio
 import httpx
 
@@ -57,6 +57,7 @@ def map_kline_row(row: List[Any]) -> Dict[str, Any]:
         "taker_buy_base": float(row[9]),
         "taker_buy_quote": float(row[10]),
     }
+
 async def fetch_klines_paginated(
     client: httpx.AsyncClient,
     symbol_pair: str,
@@ -95,3 +96,14 @@ async def fetch_klines_paginated(
         s = last_close + 1
         await asyncio.sleep(0.12)  # be polite
     return out
+
+async def fetch_binance_price(client: httpx.AsyncClient, symbol: str) -> tuple[str, float]:
+    """
+    Fetch latest Binance price for BTC or ETH.
+    Returns (pair_name, price).
+    """
+    pair = PAIRS[symbol]
+    r = await client.get(f"{BINANCE}/api/v3/ticker/price", params={"symbol": pair})
+    r.raise_for_status()
+    data = r.json()
+    return data["symbol"], float(data["price"])

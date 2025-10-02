@@ -1,7 +1,11 @@
 import asyncio
 import httpx
-from datetime import datetime
+from datetime import datetime,timezone,timedelta
 from typing import Any, Dict
+
+COIN = "celo:0x765DE816845861e75A25fCA122bb6898B8B1282a"
+DEFI_LLAMA_API = "https://coins.llama.fi"
+BASE_URL = "https://api.llama.fi"
 
 # -----------------
 # Helper functions
@@ -34,7 +38,6 @@ async def fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts: int
         start_ts //= 1000
     if end_ts > 1e12:
         end_ts //= 1000
-    coin = "celo:0x765DE816845861e75A25fCA122bb6898B8B1282a"
 
     # Parse step string into seconds
     unit = step[-1].lower()
@@ -55,14 +58,14 @@ async def fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts: int
     print(f"Fetching cUSD chart from {start_ts} to {end_ts} with step {step} ({step_seconds} seconds)")
     print(f" these are all the params: start={start_ts}, period={step}, span={span}")
 
-    url = f"https://coins.llama.fi/chart/{coin}?start={start_ts}&period={step}&span={span}"
+    url = f"{DEFI_LLAMA_API}/chart/{COIN}?start={start_ts}&period={step}&span={span}"
 
     try:
         resp = await client.get(url)
         resp.raise_for_status()
         data = resp.json()
     except httpx.HTTPStatusError as e:
-        print(f"❌ HTTP error {e.response.status_code} for {url}")
+        print(f"HTTP error {e.response.status_code} for {url}")
         try:
             print("Response body:", e.response.json())
         except Exception:
@@ -70,37 +73,81 @@ async def fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts: int
         return []
 
 
-    if "coins" not in data or coin not in data["coins"]:
+    if "coins" not in data or COIN not in data["coins"]:
         if verbose:
-            print("⚠️ No data found for cUSD in given range.")
+            print("No data found for cUSD in given range.")
         return []
 
-    prices = data["coins"][coin].get("prices", [])
+    prices = data["coins"][COIN].get("prices", [])
     results = [(p["timestamp"], p["price"]) for p in prices]
 
     if verbose:
         for ts, price in results:
             dt = datetime.fromtimestamp(ts)  # convert seconds to datetime
             print(f"{dt} -> {price:.4f}")
-        print(f"✅ Total data points fetched: {len(results)}")
+        print(f"Total data points fetched: {len(results)}")
 
     return results
 
+async def fetch_cusd_price(client: httpx.AsyncClient) -> tuple[str, float]:
+    """
+    Fetch latest cUSD price from DeFiLlama.
+    Returns (pair_name, price).
+    """
+    url = f"{DEFI_LLAMA_API}/prices/current/{COIN}"
+    r = await client.get(url)
+    r.raise_for_status()
+    data = r.json()
+    coin_data = data.get("coins", {}).get(COIN, {})
+    return "cUSD/USD", coin_data.get("price")
 
+
+async def get_protocol_tvl(client: httpx.AsyncClient,protocol: str):
+    """
+    Fetch total and chain-specific TVL for a given DeFi protocol from DeFiLlama
+    """
+    url = f"{BASE_URL}/protocol/{protocol}"
+    print("Fetching TVL data from:", url)
+    resp = await client.get(url)
+    print(resp)
+    resp.raise_for_status()
+    data = resp.json()
+    chain_tvls = data.get("currentChainTvls", {})
+
+    # Calculate total TVL
+    total_tvl = sum(chain_tvls.values())
+
+    return {
+        "total_tvl": total_tvl,
+        "chains": chain_tvls
+    }
+
+# Example usage
+if __name__ == "__main__":
+    async def main():
+        async with httpx.AsyncClient() as client:
+            result = await get_protocol_tvl(client,"aave")
+            print("Total TVL:", result["total_tvl"])
+            print("Breakdown by chain:")
+            for chain, tvl in result["chains"].items():
+                print(f"  {chain}: {tvl}")
+    asyncio.run(main())
 # -----------------
 # Example usage
 # -----------------
-if __name__ == "__main__":
-    async def main():
-        start_str = "2023-09-13 22:44:00"
-        end_str   = "2023-09-18 18:45:00"
+# if __name__ == "__main__":
+#     async def main():
+#         start_str = "2023-09-13 22:44:00"
+#         end_str   = "2023-09-18 18:45:00"
 
-        start = datetime_to_unix(start_str)  # seconds
-        end   = datetime_to_unix(end_str)    # seconds
+#         start = datetime_to_unix(start_str)  # seconds
+#         end   = datetime_to_unix(end_str)    # seconds
 
-        async with httpx.AsyncClient() as client:
-            await fetch_cusd_chart(client, start, end, step="8h", verbose=False)
+#         async with httpx.AsyncClient() as client:
+#             # await fetch_cusd_chart(client, start, end, step="8h", verbose=False)
+#             my_coin_price = await fetch_cusd_price(client)
+#             print(f"Current cUSD price: {my_coin_price}")
 
-    asyncio.run(main())
+#     asyncio.run(main())
 
 

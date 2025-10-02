@@ -6,14 +6,14 @@ from typing import Literal, List, Any, Dict
 import httpx
 from fastapi import FastAPI, HTTPException, Path, Query, WebSocket, WebSocketDisconnect
 import asyncio
-from defi_llama_api_wrapper import isCUSD, map_cusd_row, fetch_cusd_chart
+from defi_llama_api_wrapper import (isCUSD, map_cusd_row, fetch_cusd_chart,fetch_cusd_price,get_protocol_tvl)
 
 
 from fastapi.middleware.cors import CORSMiddleware
 
 from binance_api_wrapper import (
     fetch_klines_paginated, BINANCE, snap_to_last_closed,
-    VALID_INTERVALS, map_kline_row
+    VALID_INTERVALS, map_kline_row, fetch_binance_price
 )
 
 from shared_utils import PAIRS
@@ -92,37 +92,53 @@ async def get_prices(
         "points": points,  # OHLCV per candle with timestamps
     }
 
+
+@app.get("/tvl/{protocol}/health")
+async def tvl_health(
+    protocol: str
+):
+    """
+    Return TVL history for a DeFi protocol in a given time range.
+    """
+    print(f"Endpoint: /tvl/{protocol}/health")
+    async with httpx.AsyncClient() as client:
+        try:
+            tvl_data = await get_protocol_tvl(client,protocol)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Error fetching TVL: {str(e)}")
+
+    # Convert to JSON-friendly output
+    return {
+        "protocol": protocol,
+        "total_tvl": tvl_data["total_tvl"],
+        "chains": list(tvl_data["chains"].items())
+    }
+
 @app.websocket("/ws/prices/{symbol}/latest")
-async def latest_price_ws(websocket: WebSocket, symbol: Literal["BTC", "ETH"]):
+async def latest_price_ws(websocket: WebSocket, symbol: Literal["BTC", "ETH", "cUSD"]):
     await websocket.accept()
-    pair = PAIRS.get(symbol)
-    if pair is None:
-        await websocket.close(code=1003, reason="Unsupported symbol (use BTC or ETH).")
-        return
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             while True:
                 try:
-                    r = await client.get(f"{BINANCE}/api/v3/ticker/price", params={"symbol": pair})
-                    if r.status_code == 429:
-                        await websocket.send_json({"error": "Rate limited, try again shortly."})
-                        await asyncio.sleep(5)
-                        continue
-                    r.raise_for_status()
-                    data = r.json()
+                    if symbol in ["BTC", "ETH"]:
+                        pair_name, price = await fetch_binance_price(client, symbol)
+                    elif symbol == "cUSD":
+                        pair_name, price = await fetch_cusd_price(client)
 
                     await websocket.send_json({
                         "symbol": symbol,
-                        "pair": data["symbol"],
-                        "price": float(data["price"]),
+                        "pair": pair_name,
+                        "price": price,
                         "timestamp": int(datetime.now(tz=timezone.utc).timestamp() * 1000),
                     })
 
                 except httpx.RequestError as e:
                     await websocket.send_json({"error": f"Network error: {str(e)}"})
+                except Exception as e:
+                    await websocket.send_json({"error": f"Unexpected error: {str(e)}"})
 
-                # wait a few seconds before fetching again
                 await asyncio.sleep(3)
 
     except WebSocketDisconnect:

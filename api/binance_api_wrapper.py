@@ -8,8 +8,6 @@ import httpx
 
 BINANCE = "https://api.binance.com"
 
-# Allowed symbols and their Binance pairs (USDT quote ~ USD)
-PAIRS = {"BTC": "BTCUSDT", "ETH": "ETHUSDT"}
 
 # Valid Binance intervals
 VALID_INTERVALS = {

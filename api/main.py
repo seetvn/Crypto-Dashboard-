@@ -6,14 +6,17 @@ from typing import Literal, List, Any, Dict
 import httpx
 from fastapi import FastAPI, HTTPException, Path, Query, WebSocket, WebSocketDisconnect
 import asyncio
+from defi_llama_api_wrapper import isCUSD, map_cusd_row, fetch_cusd_chart
 
 
 from fastapi.middleware.cors import CORSMiddleware
 
 from binance_api_wrapper import (
-    fetch_klines_paginated, BINANCE, snap_to_last_closed, PAIRS,
+    fetch_klines_paginated, BINANCE, snap_to_last_closed,
     VALID_INTERVALS, map_kline_row
 )
+
+from shared_utils import PAIRS
 
 app = FastAPI(title="Binance Price API", version="1.0")
 
@@ -38,7 +41,7 @@ app.add_middleware(
     ),
 )
 async def get_prices(
-    symbol: Literal["BTC", "ETH"] = Path(..., description="BTC or ETH"),
+    symbol: Literal["BTC", "ETH", "cUSD"] = Path(..., description="BTC or ETH"),
     start_ms: int = Query(..., alias="startTime", description="Start time (UNIX ms, UTC)"),
     end_ms: int = Query(..., alias="endTime", description="End time (UNIX ms, UTC, exclusive)"),
     interval: Literal[
@@ -49,7 +52,7 @@ async def get_prices(
     print(f"Endpoint: /prices/{symbol}, start: {start_ms}, end: {end_ms}, interval: {interval}")
     pair = PAIRS.get(symbol)
     if pair is None:
-        raise HTTPException(status_code=404, detail="Unsupported symbol (use BTC or ETH).")
+        raise HTTPException(status_code=404, detail="Unsupported symbol (use BTC or ETH or cUSD).")
     if interval not in VALID_INTERVALS:
         raise HTTPException(status_code=400, detail=f"Invalid interval '{interval}'.")
     if end_ms <= start_ms:
@@ -58,15 +61,25 @@ async def get_prices(
     # Snap end to last fully closed candle for fixed intervals
     end_snapped = snap_to_last_closed(end_ms, interval)
 
-    async with httpx.AsyncClient() as client:
-        try:
-            raw = await fetch_klines_paginated(client, pair, interval, start_ms, end_snapped)
-        except httpx.HTTPStatusError as e:
-            raise HTTPException(status_code=502, detail=f"Upstream error: {e.response.text}") from e
-        except httpx.RequestError as e:
-            raise HTTPException(status_code=502, detail=f"Network error: {str(e)}") from e
+    if isCUSD(symbol):
+        async with httpx.AsyncClient() as client:
+            try:
+                raw = await fetch_cusd_chart(client, start_ms, end_snapped, interval)
+            except httpx.HTTPStatusError as e:
+                raise HTTPException(status_code=502, detail=f"Upstream error: {e.response.text}") from e
+            except httpx.RequestError as e:
+                raise HTTPException(status_code=502, detail=f"Network error: {str(e)}") from e
+        points = [map_cusd_row(row) for row in raw]
+    else:
+        async with httpx.AsyncClient() as client:
+            try:
+                raw = await fetch_klines_paginated(client, pair, interval, start_ms, end_snapped)
+            except httpx.HTTPStatusError as e:
+                raise HTTPException(status_code=502, detail=f"Upstream error: {e.response.text}") from e
+            except httpx.RequestError as e:
+                raise HTTPException(status_code=502, detail=f"Network error: {str(e)}") from e
 
-    points = [map_kline_row(row) for row in raw]
+        points = [map_kline_row(row) for row in raw]
     print(f"Fetched {len(points)} candles for {symbol} ({pair})")
 
     return {

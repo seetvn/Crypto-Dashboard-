@@ -35,7 +35,7 @@ export default function ChartComponent({ points }) {
         labels,
         datasets: [
           {
-            label: "Close Price (USDT)",
+            label: "Close Price (USD when cUSD and USDT otherwise)",
             data: prices,
             borderColor: "green",
             backgroundColor: "rgba(0,128,0,0.2)",

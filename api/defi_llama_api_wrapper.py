@@ -67,7 +67,6 @@ async def fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts: int
             for row in new_data:
                 point = map_cusd_row(row)
                 pipe.zadd(key, {json.dumps(point): point["close_time"]})
-                print(f"🖋️ 🖋️ point with close_time {point['close_time']} added to cache 🖋️ 🖋️")
                 cached_points.append(point)
             pipe.execute()
 
@@ -85,19 +84,26 @@ async def api_fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts:
     """
 
     # Parse step string into seconds
-    unit = step[-1].lower()
+    unit = step[-1]
     value = int(step[:-1])
+    print(value,unit)
     if unit == "h":
         step_seconds = value * 3600
     elif unit == "m":
         step_seconds = value * 60
     elif unit == "d":
         step_seconds = value * 86400
+    elif unit == "w": 
+        step_seconds = value * 7 * 86400
+    elif unit == "M":  
+        step_seconds = value * 30 * 86400
     else:
-        raise ValueError("Step must end with 'h', 'm', or 'd'")
+        raise ValueError("Step must end with 'h', 'm', 'd', 'w', or 'M'")
+
 
     # Compute span
     span = (end_ts - start_ts) // step_seconds
+    span = min(span,200)
     print(f"span: {span}, step_seconds: {step_seconds}")
 
     print(f"Fetching cUSD chart from {start_ts} to {end_ts} with step {step} ({step_seconds} seconds)")
@@ -109,7 +115,6 @@ async def api_fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts:
         resp = await client.get(url)
         resp.raise_for_status()
         data = resp.json()
-        print(data)
     except httpx.HTTPStatusError as e:
         print(f"HTTP error {e.response.status_code} for {url}")
         try:
@@ -119,9 +124,8 @@ async def api_fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts:
         return []
 
 
-    if "coins" not in data or COIN not in data["coins"]:
-        if verbose:
-            print("No data found for cUSD in given range.")
+    if "coins" not in data or COIN not in data["coins"] or not data["coins"]:
+        print("🫙🫙 No data found for cUSD in given range. ")
         return []
 
     prices = data["coins"][COIN].get("prices", [])

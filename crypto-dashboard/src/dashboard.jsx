@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import ChartComponent from "./chart";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+const API_BASE =import.meta.env.VITE_API_BASE ||
+  `http://${window.location.hostname}:8000`;
+
 // cUSD only supports year 2021 onwards
 const CUSD_MIN = "2021-01-01T00:00";
 

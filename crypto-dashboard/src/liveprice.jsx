@@ -8,8 +8,10 @@ export default function LivePriceTrend({ symbol = "BTC" }) {
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
 
+  const API_BASE =import.meta.env.VITE_WS_BASE || "ws://localhost:8000";
+
   useEffect(() => {
-    const ws = new WebSocket(`ws://localhost:8000/ws/prices/${symbol}/latest`);
+    const ws = new WebSocket(`${API_BASE}/ws/prices/${symbol}/latest`);
 
     ws.onopen = () => setStatus("connected");
 

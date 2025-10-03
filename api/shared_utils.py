@@ -1,5 +1,5 @@
 import redis
-redis_instance = redis.Redis(host="localhost", port=6379, decode_responses=True)
+redis_instance = redis.Redis(host="redis", port=6379, decode_responses=True)
 # Allowed symbols and their Binance pairs (USDT quote ~ USD)
 PAIRS = {"BTC": "BTCUSDT", "ETH": "ETHUSDT", "cUSD": "CUSDUSD"}
 

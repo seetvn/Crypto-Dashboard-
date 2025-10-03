@@ -90,9 +90,7 @@ async def get_prices(
 
 
 @app.get("/tvl/{protocol}/health")
-async def tvl_health(
-    protocol: str
-):
+async def tvl_health(protocol: str):
     """
     Return TVL history for a DeFi protocol in a given time range.
     """

@@ -33,7 +33,11 @@ def map_cusd_row(row: Any) -> Dict[str, Any]:
 # -----------------
 # Main fetch function
 # -----------------
-async def fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts: int, step: str = "1h", verbose: bool = False):
+async def fetch_cusd_chart(client: httpx.AsyncClient, 
+                           start_ts: int, 
+                           end_ts: int, 
+                           step: str = "1h", 
+                           verbose: bool = False):
     """
     Fetch cUSD historical prices from DeFiLlama using httpx if not cached.
     """
@@ -79,7 +83,11 @@ async def fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts: int
     return cached_points
 
 
-async def api_fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts: int, step: str = "1h", verbose: bool = False):
+async def api_fetch_cusd_chart(client: httpx.AsyncClient, 
+                               start_ts: int, 
+                               end_ts: int, 
+                               step: str = "1h", 
+                               verbose: bool = False):
     """
     Fetch cUSD historical prices from DeFiLlama using httpx.
     Expects start_ts and end_ts in SECONDS.

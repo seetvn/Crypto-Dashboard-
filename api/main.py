@@ -11,12 +11,10 @@ from defi_llama_api_wrapper import (isCUSD, map_cusd_row, fetch_cusd_chart,fetch
 
 from fastapi.middleware.cors import CORSMiddleware
 
-from binance_api_wrapper import (
-    fetch_klines_paginated, BINANCE, snap_to_last_closed,
-    VALID_INTERVALS, map_kline_row, fetch_binance_price
+from binance_api_wrapper import ( snap_to_last_closed, fetch_binance_price,fetch_klines
 )
 
-from shared_utils import PAIRS
+from shared_utils import PAIRS, VALID_INTERVALS
 
 app = FastAPI(title="Binance Price API", version="1.0")
 
@@ -73,13 +71,12 @@ async def get_prices(
     else:
         async with httpx.AsyncClient() as client:
             try:
-                raw = await fetch_klines_paginated(client, pair, interval, start_ms, end_snapped)
+                points = await fetch_klines(client, pair, interval, start_ms, end_snapped)
             except httpx.HTTPStatusError as e:
                 raise HTTPException(status_code=502, detail=f"Upstream error: {e.response.text}") from e
             except httpx.RequestError as e:
                 raise HTTPException(status_code=502, detail=f"Network error: {str(e)}") from e
 
-        points = [map_kline_row(row) for row in raw]
     print(f"Fetched {len(points)} candles for {symbol} ({pair})")
 
     return {

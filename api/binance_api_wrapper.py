@@ -2,29 +2,14 @@
 # main.py
 from datetime import datetime, timezone
 from typing import Literal, List, Any, Dict, Optional
-from shared_utils import PAIRS
+from shared_utils import PAIRS, find_missing_ranges, INTERVAL_MS
 import asyncio
 import httpx
+import redis
+import json
+r = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
 BINANCE = "https://api.binance.com"
-
-
-# Valid Binance intervals
-VALID_INTERVALS = {
-    "1s","1m","3m","5m","15m","30m",
-    "1h","2h","4h","6h","8h","12h",
-    "1d","3d","1w","1M"
-}
-
-# For most intervals, compute milliseconds (month/week are special)
-INTERVAL_MS = {
-    "1s": 1_000,
-    "1m": 60_000, "3m": 180_000, "5m": 300_000, "15m": 900_000, "30m": 1_800_000,
-    "1h": 3_600_000, "2h": 7_200_000, "4h": 14_400_000, "6h": 21_600_000,
-    "8h": 28_800_000, "12h": 43_200_000,
-    "1d": 86_400_000, "3d": 259_200_000,
-}
-
 
 
 def snap_to_last_closed(end_ms: int, interval: str) -> int:
@@ -57,6 +42,51 @@ def map_kline_row(row: List[Any]) -> Dict[str, Any]:
         "taker_buy_base": float(row[9]),
         "taker_buy_quote": float(row[10]),
     }
+async def fetch_klines(
+    client: httpx.AsyncClient,
+    symbol_pair: str,
+    interval: str,
+    start_ms: int,
+    end_ms: int
+) -> List[Dict[str, Any]]:
+    """
+    Fetch candles for [start_ms, end_ms], using Redis cache when possible.
+    """
+    key = f"{symbol_pair}:{interval}"
+    # STEP 1: Load cached data from Redis (sorted set score = open_time, value = JSON)
+    cached_raw = r.zrangebyscore(key, start_ms, end_ms)
+    cached_points = [json.loads(x) for x in cached_raw]
+
+    # STEP 2: Figure out missing intervals
+    missing_ranges = find_missing_ranges(start_ms, end_ms, cached_points, interval)
+    if missing_ranges:
+        print(f" ⚠️ ⚠️ Cache miss for {symbol_pair} {interval}, missing ranges: {missing_ranges} ⚠️ ⚠️")
+    else:
+        # EARLY EXIT if no missing ranges
+        print(f"👅 👅Cache hit for {symbol_pair} {interval}, no missing ranges. 👅 👅")
+        cached_points.sort(key=lambda p: p["open_time"])
+        return cached_points
+
+    # STEP 3: Fetch missing ranges from Binance and store them
+    for s, e in missing_ranges:
+        print(f"= = = Fetching {symbol_pair} {interval} from {s} to {e}= = =")
+        new_data = await fetch_klines_paginated(client, symbol_pair, interval, s, e)
+
+        # Insert into Redis
+        with r.pipeline() as pipe:
+            for row in new_data:
+                point = map_kline_row(row)
+                pipe.zadd(key, {json.dumps(point): point["open_time"]})
+                cached_points.append(point)
+            pipe.execute()
+
+        await asyncio.sleep(0.1)  # polite delay
+
+    # STEP 4: Filter & sort merged data
+    cached_points = [p for p in cached_points if start_ms <= p["open_time"] <= end_ms]
+    cached_points.sort(key=lambda p: p["open_time"])
+
+    return cached_points
 
 async def fetch_klines_paginated(
     client: httpx.AsyncClient,

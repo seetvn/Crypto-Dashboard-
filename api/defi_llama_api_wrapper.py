@@ -26,7 +26,9 @@ def isCUSD(symbol: str) -> bool:
 def map_cusd_row(row: Any) -> Dict[str, Any]:
     return {
         "close_time": row[0] * 1000,
-        "close": float(row[1])
+        "close": float(row[1]),
+        "open_time": row[0] * 1000,
+        "open": float(row[1]),
     }
 # -----------------
 # Main fetch function
@@ -106,8 +108,7 @@ async def api_fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts:
     span = min(span,200)
     print(f"span: {span}, step_seconds: {step_seconds}")
 
-    print(f"Fetching cUSD chart from {start_ts} to {end_ts} with step {step} ({step_seconds} seconds)")
-    print(f" these are all the params: start={start_ts}, period={step}, span={span}")
+    print(f"Fetching cUSD chart from {start_ts} to {end_ts} with step {step} ({step_seconds} seconds) and span {span}")
 
     url = f"{DEFI_LLAMA_API}/chart/{COIN}?start={start_ts}&period={step}&span={span}"
 
@@ -125,7 +126,7 @@ async def api_fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts:
 
 
     if "coins" not in data or COIN not in data["coins"] or not data["coins"]:
-        print("🫙🫙 No data found for cUSD in given range. ")
+        print("🫙🫙 No data found for cUSD in given range. 🫙🫙 ")
         return []
 
     prices = data["coins"][COIN].get("prices", [])

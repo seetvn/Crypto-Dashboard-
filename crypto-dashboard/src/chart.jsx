@@ -1,16 +1,17 @@
-import React from "react";
-import { useEffect, useRef} from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Chart } from "chart.js/auto";
-import PropTypes from "prop-types";  // 👈 import this
+import PropTypes from "prop-types";
 
 export default function ChartComponent({ points }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
+  const [timeField, setTimeField] = useState("close_time"); // 👈 default = close_time
   const selected = null;
 
   console.log("There are", points.length, "points");
 
-  const timestamps = points.map((p) => p.close_time ?? p.open_time);
+  // choose which time field to use dynamically
+  const timestamps = points.map((p) => p[timeField] ?? p.open_time);
   const prices = points.map((p) => p.close);
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export default function ChartComponent({ points }) {
         labels,
         datasets: [
           {
-            label: "Close Price (USD when cUSD and USDT otherwise)",
+            label: `Price (using ${timeField})`,
             data: prices,
             borderColor: "green",
             backgroundColor: "rgba(0,128,0,0.2)",
@@ -46,16 +47,29 @@ export default function ChartComponent({ points }) {
         ],
       },
     });
-  }, [points]);
+  }, [points, timeField]); // 👈 re-run when user changes field
 
   return (
     <div>
+      {/* 👇 selector for open_time / close_time */}
+      <div style={{ marginBottom: "1rem" }}>
+        <label>Choose time field: </label>
+        <select
+          value={timeField}
+          onChange={(e) => setTimeField(e.target.value)}
+        >
+          <option value="close_time">Close Time</option>
+          <option value="open_time">Open Time</option>
+        </select>
+      </div>
+
       <canvas
         ref={canvasRef}
         width="900"
         height="360"
         style={{ border: "1px solid #ccc", borderRadius: 8 }}
       />
+
       <div>
         {selected ? (
           <strong>
@@ -71,7 +85,7 @@ export default function ChartComponent({ points }) {
   );
 }
 
-// ✅ declare prop types so ESLint shuts up
+// ✅ declare prop types
 ChartComponent.propTypes = {
   points: PropTypes.arrayOf(
     PropTypes.shape({

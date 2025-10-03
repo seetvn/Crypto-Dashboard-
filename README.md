@@ -76,3 +76,14 @@ const ws = new WebSocket(`${API_BASE}/ws/prices/${symbol}/latest`);
 ## 3. Docker for containerisation
 
 Docker was used to ensure that the application could be replicated anywhere.
+
+## 4. Capping intervals based on time ranges
+
+Intervals are capped based on the difference in time ranges so that the output is not very large.
+
+
+# Next steps
+
+- Actual hosting of the web-app
+- Adding more currencies
+- Adding functionality to actually download the price change (as a .csv) for external use

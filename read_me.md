@@ -1,0 +1,64 @@
+# 🚀 Running the Crypto Dashboard
+
+This project consists of:  
+- **Backend (FastAPI)** → serves historical price data and WebSocket streams  
+- **Frontend (React + Vite + Chart.js)** → interactive dashboard  
+- **Redis** → caching layer for historical API calls  
+
+All services are containerised using **Docker Compose**.
+
+---
+
+## 🛠️ Prerequisites
+- [Docker](https://docs.docker.com/get-docker/) installed  
+- [Docker Compose](https://docs.docker.com/compose/) installed (already included in Docker Desktop)
+
+---
+
+## ▶️ Running the App
+
+Clone the repository and navigate to the project root:
+
+```bash
+git clone <your-repo-url>
+cd <your-repo>
+docker compose up --build
+```
+If you don’t need to rebuild (no dependency changes), just run:
+```bash
+docker compose up
+```
+
+## Services
+
+- Frontend (React): http://localhost:5173
+
+- Backend (FastAPI): http://localhost:8000
+
+- Redis: running internally at redis://redis:6379
+
+# Design Choices
+
+## 1. Redis for Caching Time-Range API Calls
+
+Fetching long historical price ranges directly from DeFiLlama each time is expensive and slow.  
+To optimise this:
+
+- **Cache Layer**: Each API call (e.g. "give me cUSD prices from Jan–March") is stored in Redis as sorted sets.  
+- **Cache Hits**: If the range already exists, results are served from Redis instantly.  
+- **Cache Misses**: Only missing time slices are fetched from DeFiLlama, stored in Redis, and merged back into the response.  
+
+This reduces redundant external requests and keeps the dashboard responsive, especially when multiple clients request overlapping ranges.
+
+---
+
+## 2. WebSockets for Real-Time Prices
+
+While historical data can be cached, latest prices need to update in real time.  
+To handle this:
+
+- The backend exposes a WebSocket endpoint (e.g. `/ws/prices/<symbol>/latest`).  
+- The frontend opens a persistent WebSocket connection using:
+
+```javascript
+const ws = new WebSocket(`${API_BASE}/ws/prices/${symbol}/latest`);

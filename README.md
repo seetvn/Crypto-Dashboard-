@@ -77,9 +77,9 @@ const ws = new WebSocket(`${API_BASE}/ws/prices/${symbol}/latest`);
 
 Docker was used to ensure that the application could be replicated anywhere.
 
-## 4. Capping intervals based on time ranges
+## 4. Capping intervals based on time ranges (front-end)
 
-Intervals are capped based on the difference in time ranges so that the output is not very large.
+Intervals are capped ion the UI based on the difference in time ranges so that the output is not very large.
 
 
 # Next steps

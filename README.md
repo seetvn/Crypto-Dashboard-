@@ -36,7 +36,6 @@ docker compose up
 - Backend (FastAPI): http://localhost:8000
 
 - Redis: running internally at redis://redis:6379
-# Approach
 
 # Approach
 
@@ -51,12 +50,12 @@ Afterwards, I extended the system to support **cUSD** as well as the **Total Val
 
 ## 1. Redis for Caching Time-Range API Calls
 
-Fetching long historical price ranges directly from DeFiLlama (or some paid API) each time is expensive and slow.  
+Fetching long historical price ranges directly from DeFiLlama/Binance (or some paid API) each time is expensive and slow.  
 To optimise this:
 
-- **Cache Layer**: Each API call (e.g. "give me cUSD prices from Jan–March") is stored in Redis as sorted sets.  
+- **Cache Layer**: Each API call (e.g. "give me cUSD prices from Jan–March") is stored in Redis as sorted sets using ```zrangebyscore()``` and ```zadd()```
 - **Cache Hits**: If the range already exists, results are served from Redis instantly.  
-- **Cache Misses**: Only missing time slices are fetched from DeFiLlama, stored in Redis, and merged back into the response.  
+- **Cache Misses**: Only missing time slices are fetched from DeFiLlama/Binance, stored in Redis, and merged back into the response.  
 
 This reduced redundant external requests and kept the dashboard responsive, especially when requesting overlapping ranges.
 

@@ -5,9 +5,8 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 //TODO: adjust interval according to range
 //TODO: add more data to chart (e.g., close, indicators, etc)
 //TODO: better error handling (e.g., network errors)
-// cUSD only supports year 2021
+// cUSD only supports year 2021 onwards
 const CUSD_MIN = "2021-01-01T00:00";
-const CUSD_MAX = "2021-12-31T23:59";
 
 export default function Dashboard() {
   const [symbol, setSymbol] = useState("BTC");
@@ -35,9 +34,9 @@ export default function Dashboard() {
     }
     if (symbol === "cUSD") {
       const min = new Date(CUSD_MIN).getTime();
-      const max = new Date(CUSD_MAX).getTime();
+      const max = Date.now(); // allow up to current time
       if (startMs < min || endMs > max) {
-        setError("cUSD data only available for year 2021.");
+        setError("cUSD data only available from 2021 onwards.");
         return;
       }
     }
@@ -89,7 +88,7 @@ export default function Dashboard() {
               setSymbol(val);
               if (val === "cUSD") {
                 setStart(CUSD_MIN);
-                setEnd(CUSD_MAX);
+                setEnd(new Date().toISOString().slice(0, 16)); // default end = now
               }
             }}
           >
@@ -121,7 +120,7 @@ export default function Dashboard() {
             type="datetime-local"
             value={start}
             min={symbol === "cUSD" ? CUSD_MIN : undefined}
-            max={symbol === "cUSD" ? CUSD_MAX : new Date().toISOString().slice(0, 16)}
+            max={new Date().toISOString().slice(0, 16)} // always up to now
             onChange={(e) => setStart(e.target.value)}
           />
         </div>
@@ -134,7 +133,7 @@ export default function Dashboard() {
             type="datetime-local"
             value={end}
             min={symbol === "cUSD" ? CUSD_MIN : undefined}
-            max={symbol === "cUSD" ? CUSD_MAX : new Date().toISOString().slice(0, 16)}
+            max={new Date().toISOString().slice(0, 16)} // always up to now
             onChange={(e) => setEnd(e.target.value)}
           />
         </div>

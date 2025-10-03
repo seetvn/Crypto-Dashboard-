@@ -1,7 +1,9 @@
 import asyncio
 import httpx
-from datetime import datetime,timezone,timedelta
+from datetime import datetime
 from typing import Any, Dict
+from shared_utils import redis_instance as r,find_missing_ranges, find_missing_ranges
+import json
 
 COIN = "celo:0x765DE816845861e75A25fCA122bb6898B8B1282a"
 DEFI_LLAMA_API = "https://coins.llama.fi"
@@ -31,13 +33,56 @@ def map_cusd_row(row: Any) -> Dict[str, Any]:
 # -----------------
 async def fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts: int, step: str = "1h", verbose: bool = False):
     """
+    Fetch cUSD historical prices from DeFiLlama using httpx if not cached.
+    """
+    key = f"{COIN}:{step}"
+
+    # Always work in ms
+    if start_ts < 1e12:  
+        start_ts *= 1000
+    if end_ts < 1e12:
+        end_ts *= 1000
+
+    # STEP 1: Query cached
+    cached_raw = r.zrangebyscore(key, start_ts, end_ts)
+    cached_points = [json.loads(x) for x in cached_raw]
+
+    # STEP 2: Missing ranges (all in ms now)
+    missing_ranges = find_missing_ranges(start_ts, end_ts, cached_points, step)
+    if missing_ranges:
+        print(f" ⚠️ ⚠️ Cache miss for {COIN} {step}, missing ranges: {missing_ranges} ⚠️ ⚠️")
+    else:
+        print(f"👅 👅 Cache hit for {COIN} {step}, no missing ranges 👅 👅")
+        cached_points.sort(key=lambda p: p["close_time"])
+        return cached_points
+
+    # STEP 3: Fetch missing ranges from external API
+    for s, e in missing_ranges:
+        print(f"= = = Fetching {COIN} {step} from {s} to {e}= = =")
+
+        # convert to seconds only for external call
+        new_data = await api_fetch_cusd_chart(client, s // 1000, e // 1000, step)
+
+        with r.pipeline() as pipe:
+            for row in new_data:
+                point = map_cusd_row(row)
+                pipe.zadd(key, {json.dumps(point): point["close_time"]})
+                print(f"🖋️ 🖋️ point with close_time {point['close_time']} added to cache 🖋️ 🖋️")
+                cached_points.append(point)
+            pipe.execute()
+
+        await asyncio.sleep(0.1)
+
+    cached_points = [p for p in cached_points if start_ts <= p["close_time"] <= end_ts]
+    cached_points.sort(key=lambda p: p["close_time"])
+    return cached_points
+
+
+async def api_fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts: int, step: str = "1h", verbose: bool = False):
+    """
     Fetch cUSD historical prices from DeFiLlama using httpx.
     Expects start_ts and end_ts in SECONDS.
     """
-    if start_ts > 1e12:  
-        start_ts //= 1000
-    if end_ts > 1e12:
-        end_ts //= 1000
 
     # Parse step string into seconds
     unit = step[-1].lower()
@@ -64,6 +109,7 @@ async def fetch_cusd_chart(client: httpx.AsyncClient, start_ts: int, end_ts: int
         resp = await client.get(url)
         resp.raise_for_status()
         data = resp.json()
+        print(data)
     except httpx.HTTPStatusError as e:
         print(f"HTTP error {e.response.status_code} for {url}")
         try:
@@ -109,7 +155,6 @@ async def get_protocol_tvl(client: httpx.AsyncClient,protocol: str):
     url = f"{BASE_URL}/protocol/{protocol}"
     print("Fetching TVL data from:", url)
     resp = await client.get(url)
-    print(resp)
     resp.raise_for_status()
     data = resp.json()
     chain_tvls = data.get("currentChainTvls", {})
@@ -123,31 +168,31 @@ async def get_protocol_tvl(client: httpx.AsyncClient,protocol: str):
     }
 
 # Example usage
-if __name__ == "__main__":
-    async def main():
-        async with httpx.AsyncClient() as client:
-            result = await get_protocol_tvl(client,"aave")
-            print("Total TVL:", result["total_tvl"])
-            print("Breakdown by chain:")
-            for chain, tvl in result["chains"].items():
-                print(f"  {chain}: {tvl}")
-    asyncio.run(main())
+# if __name__ == "__main__":
+#     async def main():
+#         async with httpx.AsyncClient() as client:
+#             result = await get_protocol_tvl(client,"aave")
+#             print("Total TVL:", result["total_tvl"])
+#             print("Breakdown by chain:")
+#             for chain, tvl in result["chains"].items():
+#                 print(f"  {chain}: {tvl}")
+#     asyncio.run(main())
 # -----------------
 # Example usage
 # -----------------
-# if __name__ == "__main__":
-#     async def main():
-#         start_str = "2023-09-13 22:44:00"
-#         end_str   = "2023-09-18 18:45:00"
+if __name__ == "__main__":
+    async def main():
+        start_str = "2023-09-13 22:44:00"
+        end_str   = "2023-09-18 18:45:00"
 
-#         start = datetime_to_unix(start_str)  # seconds
-#         end   = datetime_to_unix(end_str)    # seconds
+        start = datetime_to_unix(start_str)  # seconds
+        end   = datetime_to_unix(end_str)    # seconds
 
-#         async with httpx.AsyncClient() as client:
-#             # await fetch_cusd_chart(client, start, end, step="8h", verbose=False)
-#             my_coin_price = await fetch_cusd_price(client)
-#             print(f"Current cUSD price: {my_coin_price}")
+        async with httpx.AsyncClient() as client:
+            await api_fetch_cusd_chart(client, start, end, step="8h", verbose=True)
+            # my_coin_price = await fetch_cusd_price(client)
+            # print(f"Current cUSD price: {my_coin_price}")
 
-#     asyncio.run(main())
+    asyncio.run(main())
 
 

@@ -1,3 +1,5 @@
+import redis
+redis_instance = redis.Redis(host="localhost", port=6379, decode_responses=True)
 # Allowed symbols and their Binance pairs (USDT quote ~ USD)
 PAIRS = {"BTC": "BTCUSDT", "ETH": "ETHUSDT", "cUSD": "CUSDUSD"}
 
@@ -25,7 +27,7 @@ def find_missing_ranges(request_start, request_end, cached_points, interval_ms):
         return [(request_start, request_end)]
 
     # already sorted if coming from Redis ZRANGEBYSCORE
-    timestamps = [p["open_time"] for p in cached_points]
+    timestamps = [p.get("open_time",p["close_time"])for p in cached_points]
 
     missing = []
 

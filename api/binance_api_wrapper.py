@@ -2,12 +2,10 @@
 # main.py
 from datetime import datetime, timezone
 from typing import Literal, List, Any, Dict, Optional
-from shared_utils import PAIRS, find_missing_ranges, INTERVAL_MS
+from shared_utils import PAIRS, find_missing_ranges, INTERVAL_MS, redis_instance as r
 import asyncio
 import httpx
-import redis
 import json
-r = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
 BINANCE = "https://api.binance.com"
 
@@ -85,7 +83,6 @@ async def fetch_klines(
     # STEP 4: Filter & sort merged data
     cached_points = [p for p in cached_points if start_ms <= p["open_time"] <= end_ms]
     cached_points.sort(key=lambda p: p["open_time"])
-
     return cached_points
 
 async def fetch_klines_paginated(

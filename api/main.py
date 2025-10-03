@@ -62,12 +62,11 @@ async def get_prices(
     if isCUSD(symbol):
         async with httpx.AsyncClient() as client:
             try:
-                raw = await fetch_cusd_chart(client, start_ms, end_snapped, interval)
+                points = await fetch_cusd_chart(client, start_ms, end_snapped, interval)
             except httpx.HTTPStatusError as e:
                 raise HTTPException(status_code=502, detail=f"Upstream error: {e.response.text}") from e
             except httpx.RequestError as e:
                 raise HTTPException(status_code=502, detail=f"Network error: {str(e)}") from e
-        points = [map_cusd_row(row) for row in raw]
     else:
         async with httpx.AsyncClient() as client:
             try:

@@ -24,7 +24,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ],
-    allow_credentials=False,          # keep False if you ever switch to allow_origins=["*"]
+    allow_credentials=False,          # keep False if ever switch to allow_origins=["*"]
     allow_methods=["GET", "OPTIONS"], # OPTIONS needed for preflight
     allow_headers=["*"],
 )
@@ -89,7 +89,10 @@ async def get_prices(
     }
 
 
-@app.get("/tvl/{protocol}/health")
+@app.get("/tvl/{protocol}/health",
+         summary="DeFi Protocol TVL",
+         description="Fetch total and chain-specific TVL for a given DeFi protocol from DeFi"
+         )
 async def tvl_health(protocol: str):
     """
     Return TVL history for a DeFi protocol in a given time range.
@@ -108,7 +111,10 @@ async def tvl_health(protocol: str):
         "chains": list(tvl_data["chains"].items())
     }
 
-@app.websocket("/ws/prices/{symbol}/latest")
+@app.websocket("/ws/prices/{symbol}/latest",
+               summary="Latest Price WebSocket",
+               description="WebSocket endpoint to stream latest price for BTC, ETH, or cUSD every 3 seconds."
+)
 async def latest_price_ws(websocket: WebSocket, symbol: Literal["BTC", "ETH", "cUSD"]):
     await websocket.accept()
 

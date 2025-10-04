@@ -9,7 +9,9 @@ import json
 
 BINANCE = "https://api.binance.com"
 
-
+# -----------------
+# Helper functions
+# -----------------
 def snap_to_last_closed(end_ms: int, interval: str) -> int:
     """
     Snap end_ms down to the last fully closed candle for fixed-size intervals.
@@ -40,6 +42,10 @@ def map_kline_row(row: List[Any]) -> Dict[str, Any]:
         "taker_buy_base": float(row[9]),
         "taker_buy_quote": float(row[10]),
     }
+
+# -----------------
+# Main fetch functions
+# -----------------
 async def fetch_klines(
     client: httpx.AsyncClient,
     symbol_pair: str,

@@ -26,6 +26,18 @@ const INTERVAL_LIMITS = {
 };
 
 export default function Dashboard() {
+  /*
+    State:
+      - symbol: "BTC", "ETH", or "cUSD"
+      - interval: selected interval for historical data
+      - start, end: datetime-local strings for start and end time
+      - loading: whether data is being fetched
+      - resp: API response data
+      - error: error message if any
+      - showRaw: whether to show raw API response
+
+    fetches historical price data on form submit and displays a chart.
+  */
   const [symbol, setSymbol] = useState("BTC");
   const [interval, setInterval] = useState("1h");
   const [start, setStart] = useState("");

@@ -3,6 +3,17 @@ import { Chart } from "chart.js/auto";
 import PropTypes from "prop-types";
 
 export default function ChartComponent({ points }) {
+  /*
+    Props:
+      - points: array of {open_time, close_time, open, close
+    State:
+      - canvasRef: ref to the canvas element for Chart.js
+      - chartRef: ref to the Chart.js instance
+      - timeField: which time field to use for x-axis ("open_time" or "close_time")
+      - selected: currently selected data point (for displaying exact time and price)
+    
+    displays a line chart of historical prices using Chart.js.
+  */
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
   const [timeField, setTimeField] = useState("close_time"); // 👈 default = close_time
@@ -47,11 +58,11 @@ export default function ChartComponent({ points }) {
         ],
       },
     });
-  }, [points, timeField]); // 👈 re-run when user changes field
+  }, [points, timeField]); // re-run when user changes field
 
   return (
     <div>
-      {/* 👇 selector for open_time / close_time */}
+      {/*  selector for open_time / close_time */}
       <div style={{ marginBottom: "1rem" }}>
         <label>Choose time field: </label>
         <select
@@ -85,7 +96,7 @@ export default function ChartComponent({ points }) {
   );
 }
 
-// ✅ declare prop types
+// declare prop types
 ChartComponent.propTypes = {
   points: PropTypes.arrayOf(
     PropTypes.shape({

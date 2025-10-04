@@ -2,6 +2,19 @@ import React, { useEffect, useState, useRef } from "react";
 import { Chart } from "chart.js/auto";
 
 export default function LivePriceTrend({ symbol = "BTC" }) {
+  /*
+    Props:
+      - symbol: "BTC", "ETH", or "cUSD"
+    State:
+      - status: connection status
+      - latestPrice: latest price received
+      - latestTime: timestamp of latest price
+      - chartRef: ref to the canvas element for Chart.js
+      - chartInstanceRef: ref to the Chart.js instance
+    
+    uses a websocket to receive latest price updates every 3 seconds
+    and updates a line chart showing the last 100 price points.
+  */
   const [status, setStatus] = useState("connecting...");
   const [latestPrice, setLatestPrice] = useState(null);
   const [latestTime, setLatestTime] = useState(null);
@@ -11,6 +24,7 @@ export default function LivePriceTrend({ symbol = "BTC" }) {
   const API_BASE =import.meta.env.VITE_WS_BASE || "ws://localhost:8000";
 
   useEffect(() => {
+    // Open WebSocket connection
     const ws = new WebSocket(`${API_BASE}/ws/prices/${symbol}/latest`);
 
     ws.onopen = () => setStatus("connected");
@@ -21,7 +35,7 @@ export default function LivePriceTrend({ symbol = "BTC" }) {
         setStatus(data.error);
         return;
       }
-
+      // Parse timestamp and price
       const ts = new Date(data.timestamp).toLocaleTimeString();
       const price = data.price;
 

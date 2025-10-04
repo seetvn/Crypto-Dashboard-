@@ -50,7 +50,9 @@ Afterwards, I extended the system to support **cUSD** as well as the **Total Val
 
 ## 1. Redis for Caching Time-Range API Calls
 
-Fetching long historical price ranges directly from DeFiLlama/Binance (or some paid API) each time is expensive and slow.  
+Fetching long historical price ranges directly from DeFiLlama/Binance (or some paid API) each time is expensive and slow. 
+
+(Note: in the context of this challenge, using Binance Klines API to fetch for (BTC and ETH) is quite fast, unless you choose a really small interval for a large time range, and rate-limit is not really an issue. Same for the DeFi Llama API although it is a bit slower so caching is useful here. I implemented this with the inutuition that the API could be some paid service with limited calls in which case caching would be useful.)
 To optimise this:
 
 - **Cache Layer**: Each API call (e.g. "give me cUSD prices from Jan–March") is stored in Redis as sorted sets using ```zrangebyscore()``` and ```zadd()```
